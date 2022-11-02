@@ -45,17 +45,13 @@
 * </pre>
  */
 
-#ifdef __arm__
-
 #include "xparameters.h"
 #include "xparameters_ps.h"	/* defines XPAR values */
 #include "xil_cache.h"
 #include "xscugic.h"
 #include "lwip/tcp.h"
 #include "xil_printf.h"
-#include "platform_config.h"
 #include "netif/xadapter.h"
-#ifdef PLATFORM_ZYNQ
 #include "xscutimer.h"
 #include "xtime_l.h"
 
@@ -231,5 +227,3 @@ u64_t get_time_ms()
 	return (tCur/COUNTS_PER_MILLI_SECOND);
 }
 
-#endif
-#endif

@@ -30,7 +30,6 @@
 #include "xparameters.h"
 #include "netif/xadapter.h"
 #include "platform.h"
-#include "platform_config.h"
 #include "lwipopts.h"
 #include "xil_printf.h"
 #include "sleep.h"
@@ -111,7 +110,7 @@ int main(void)
 
 	/* Add network interface to the netif_list, and set it as default */
 	if (!xemac_add(netif, NULL, NULL, NULL, mac_ethernet_address,
-				PLATFORM_EMAC_BASEADDR)) {
+			XPAR_XEMACPS_0_BASEADDR)) {
 		xil_printf("Error adding N/W interface\r\n");
 		return -1;
 	}
