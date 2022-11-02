@@ -56,20 +56,6 @@ void start_application(void);
 void transfer_data(void);
 void print_app_header(void);
 
-#if defined (__arm__) && !defined (ARMR5)
-#if XPAR_GIGE_PCS_PMA_SGMII_CORE_PRESENT == 1 || \
-		 XPAR_GIGE_PCS_PMA_1000BASEX_CORE_PRESENT == 1
-int ProgramSi5324(void);
-int ProgramSfpPhy(void);
-#endif
-#endif
-
-#ifdef XPS_BOARD_ZCU102
-#ifdef XPAR_XIICPS_0_DEVICE_ID
-int IicPhyReset(void);
-#endif
-#endif
-
 struct netif server_netif;
 
 static void print_ip(char *msg, ip_addr_t *ip)
@@ -114,20 +100,6 @@ int main(void)
 		0x00, 0x0a, 0x35, 0x00, 0x01, 0x02 };
 
 	netif = &server_netif;
-#if defined (__arm__) && !defined (ARMR5)
-#if XPAR_GIGE_PCS_PMA_SGMII_CORE_PRESENT == 1 || \
-		XPAR_GIGE_PCS_PMA_1000BASEX_CORE_PRESENT == 1
-	ProgramSi5324();
-	ProgramSfpPhy();
-#endif
-#endif
-
-	/* Define this board specific macro in order perform PHY reset
-	 * on ZCU102
-	 */
-#ifdef XPS_BOARD_ZCU102
-	IicPhyReset();
-#endif
 
 	init_platform();
 
@@ -151,7 +123,6 @@ int main(void)
 	/* specify that the network if is up */
 	netif_set_up(netif);
 
-#if (LWIP_DHCP==1)
 	/* Create a new DHCP client for this interface.
 	 * Note: you must call dhcp_fine_tmr() and dhcp_coarse_tmr() at
 	 * the predefined regular intervals after starting the client.
@@ -170,9 +141,6 @@ int main(void)
 	}
 
 	/* print IP address, netmask and gateway */
-#else
-	assign_default_ip(&(netif->ip_addr), &(netif->netmask), &(netif->gw));
-#endif
 	print_ip_settings(&(netif->ip_addr), &(netif->netmask), &(netif->gw));
 
 	xil_printf("\r\n");
