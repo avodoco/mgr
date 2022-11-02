@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="ASCII"?>
+<sdkproject:SdkProject xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sdkproject="http://www.xilinx.com/sdkproject" name="udp_example" location="C:/Users/karol/workspace/udp_example" platform="C:/Users/karol/workspace/ethernet_platform/export/ethernet_platform/ethernet_platform.xpfm" platformUID="xilinx:cora-z7-07s:ethernet_platform:0.0(custom)" systemProject="udp_example_system" sysConfig="ethernet_platform" runtime="C/C++" cpu="standalone_ps7_cortexa9_0" cpuInstance="ps7_cortexa9_0" os="standalone" mssSignature="74471e40c4a3cab0fc6300538f209170">
+  <configuration name="Debug" id="xilinx.gnu.armv7.exe.debug.1416481835">
+    <configBuildOptions xsi:type="sdkproject:SdkOptions"/>
+    <lastBuildOptions xsi:type="sdkproject:SdkOptions"/>
+  </configuration>
+  <configuration name="Release" id="xilinx.gnu.armv7.exe.release.1786055399" dirty="true">
+    <configBuildOptions xsi:type="sdkproject:SdkOptions"/>
+  </configuration>
+  <template appTemplateName="lwip_udp_perf_client" hasBspSettings="true"/>
+</sdkproject:SdkProject>
