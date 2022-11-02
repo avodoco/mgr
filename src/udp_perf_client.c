@@ -31,7 +31,7 @@
 #include "udp_perf_client.h"
 
 extern struct netif server_netif;
-static struct udp_pcb *pcb[NUM_OF_PARALLEL_CLIENTS];
+static struct udp_pcb *pcb;
 static struct perf_stats client;
 static char send_buf[UDP_SEND_BUFSIZE];
 #define FINISH	1
@@ -52,9 +52,9 @@ static void print_udp_conn_stats(void)
 {
 	xil_printf("[%3d] local %s port %d connected with ",
 			client.client_id, inet_ntoa(server_netif.ip_addr),
-			pcb[0]->local_port);
-	xil_printf("%s port %d\r\n",inet_ntoa(pcb[0]->remote_ip),
-			pcb[0]->remote_port);
+			pcb->local_port);
+	xil_printf("%s port %d\r\n",inet_ntoa(pcb->remote_ip),
+			pcb->remote_port);
 	xil_printf("[ ID] Interval\t\tTransfer   Bandwidth\n\r");
 }
 
@@ -147,74 +147,67 @@ static void udp_packet_send(u8_t finished)
 {
 	int *payload;
 	static int packet_id;
-	u8_t i;
 	u8_t retries = MAX_SEND_RETRY;
 	struct pbuf *packet;
 	err_t err;
 
-	for (i = 0; i < NUM_OF_PARALLEL_CLIENTS; i++) {
-
-		packet = pbuf_alloc(PBUF_TRANSPORT, UDP_SEND_BUFSIZE, PBUF_POOL);
-		if (!packet) {
-			xil_printf("error allocating pbuf to send\r\n");
-			return;
-		} else {
-			pbuf_take(packet, send_buf, UDP_SEND_BUFSIZE);
-		}
-
-		/* always increment the id */
-		payload = (int*) (packet->payload);
-		if (finished == FINISH)
-			packet_id = -1;
-
-		payload[0] = htonl(packet_id);
-
-		while (retries) {
-			err = udp_send(pcb[i], packet);
-			if (err != ERR_OK) {
-				xil_printf("Error on udp_send: %d\r\n", err);
-				retries--;
-				usleep(100);
-			} else {
-				client.total_bytes += UDP_SEND_BUFSIZE;
-				client.cnt_datagrams++;
-				client.i_report.total_bytes += UDP_SEND_BUFSIZE;
-				break;
-			}
-		}
-		if (!retries) {
-			/* Terminate this app */
-			u64_t now = get_time_ms();
-			u64_t diff_ms = now - client.start_time;
-			xil_printf("Too many udp_send() retries, ");
-			xil_printf("Terminating application\n\r");
-			udp_conn_report(diff_ms, UDP_DONE_CLIENT);
-			xil_printf("UDP test failed\n\r");
-			udp_remove(pcb[i]);
-			pcb[i] = NULL;
-		}
-		if (finished == FINISH)
-			pcb[i] = NULL;
-
-		pbuf_free(packet);
-
-		/* For ZynqMP SGMII, At high speed,
-		 * "pack dropped, no space" issue observed.
-		 * To avoid this, added delay of 2us between each
-		 * packets.
-		 */
+	packet = pbuf_alloc(PBUF_TRANSPORT, UDP_SEND_BUFSIZE, PBUF_POOL);
+	if (!packet) {
+		xil_printf("error allocating pbuf to send\r\n");
+		return;
+	} else {
+		pbuf_take(packet, send_buf, UDP_SEND_BUFSIZE);
 	}
+
+	/* always increment the id */
+	payload = (int*) (packet->payload);
+	if (finished == FINISH)
+		packet_id = -1;
+
+	payload[0] = htonl(packet_id);
+
+	while (retries) {
+		err = udp_send(pcb, packet);
+		if (err != ERR_OK) {
+			xil_printf("Error on udp_send: %d\r\n", err);
+			retries--;
+			usleep(100);
+		} else {
+			client.total_bytes += UDP_SEND_BUFSIZE;
+			client.cnt_datagrams++;
+			client.i_report.total_bytes += UDP_SEND_BUFSIZE;
+			break;
+		}
+	}
+	if (!retries) {
+		/* Terminate this app */
+		u64_t now = get_time_ms();
+		u64_t diff_ms = now - client.start_time;
+		xil_printf("Too many udp_send() retries, ");
+		xil_printf("Terminating application\n\r");
+		udp_conn_report(diff_ms, UDP_DONE_CLIENT);
+		xil_printf("UDP test failed\n\r");
+		udp_remove(pcb);
+		pcb = NULL;
+	}
+	if (finished == FINISH)
+		pcb = NULL;
+
+	pbuf_free(packet);
+
+	/* For ZynqMP SGMII, At high speed,
+	 * "pack dropped, no space" issue observed.
+	 * To avoid this, added delay of 2us between each
+	 * packets.
+	 */
 	packet_id++;
 }
 
 /** Transmit data on a udp session */
 void transfer_data(void)
 {
-	int i = 0;
-	for (i = 0; i < NUM_OF_PARALLEL_CLIENTS; i++) {
-		if (pcb[i] == NULL)
-			return;
-	}
+	if (pcb == NULL)
+		return;
 
 	if (END_TIME || REPORT_INTERVAL_TIME) {
 		u64_t now = get_time_ms();
@@ -260,20 +253,18 @@ void start_application(void)
 		return;
 	}
 
-	for (i = 0; i < NUM_OF_PARALLEL_CLIENTS; i++) {
-		/* Create Client PCB */
-		pcb[i] = udp_new();
-		if (!pcb[i]) {
-			xil_printf("Error in PCB creation. out of memory\r\n");
-			return;
-		}
+	/* Create Client PCB */
+	pcb = udp_new();
+	if (!pcb) {
+		xil_printf("Error in PCB creation. out of memory\r\n");
+		return;
+	}
 
-		err = udp_connect(pcb[i], &remote_addr, UDP_CONN_PORT);
-		if (err != ERR_OK) {
-			xil_printf("udp_client: Error on udp_connect: %d\r\n", err);
-			udp_remove(pcb[i]);
-			return;
-		}
+	err = udp_connect(pcb, &remote_addr, UDP_CONN_PORT);
+	if (err != ERR_OK) {
+		xil_printf("udp_client: Error on udp_connect: %d\r\n", err);
+		udp_remove(pcb);
+		return;
 	}
 	/* Wait for successful connection */
 	usleep(10);

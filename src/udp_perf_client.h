@@ -104,7 +104,4 @@ struct perf_stats {
 /* MAX UDP send retries */
 #define MAX_SEND_RETRY 10
 
-/* Number of parallel UDP clients */
-#define NUM_OF_PARALLEL_CLIENTS 1
-
 #endif /* __UDP_PERF_CLIENT_H_ */
