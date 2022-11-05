@@ -32,7 +32,6 @@
 
 extern struct netif server_netif;
 static struct udp_pcb *pcb;
-static struct perf_stats client;
 static char send_buf[UDP_SEND_BUFSIZE];
 #define FINISH	1
 /* Report interval time in ms */
@@ -40,14 +39,8 @@ static char send_buf[UDP_SEND_BUFSIZE];
 /* End time in ms */
 #define END_TIME (UDP_TIME_INTERVAL * 1000)
 
-void print_app_header(void)
-{
-	xil_printf("UDP client connecting to %s on port %d\r\n",
-			UDP_SERVER_IP_ADDRESS, UDP_CONN_PORT);
-	xil_printf("On Host: Run $iperf -s -i %d -u\r\n\r\n",
-			INTERIM_REPORT_INTERVAL);
-}
-
+#if DEBUG_ENABLE
+static struct perf_stats client;
 static void print_udp_conn_stats(void)
 {
 	xil_printf("[%3d] local %s port %d connected with ",
@@ -142,6 +135,15 @@ static void reset_stats(void)
 	client.i_report.total_bytes = 0;
 	client.i_report.last_report_time = 0;
 }
+#endif
+
+void print_app_header(void)
+{
+	xil_printf("UDP client connecting to %s on port %d\r\n",
+			UDP_SERVER_IP_ADDRESS, UDP_CONN_PORT);
+	xil_printf("On Host: Run $iperf -s -i %d -u\r\n\r\n",
+			INTERIM_REPORT_INTERVAL);
+}
 
 static void udp_packet_send(u8_t finished)
 {
@@ -173,19 +175,23 @@ static void udp_packet_send(u8_t finished)
 			retries--;
 			usleep(100);
 		} else {
+#if DEBUG_ENABLE
 			client.total_bytes += UDP_SEND_BUFSIZE;
 			client.cnt_datagrams++;
 			client.i_report.total_bytes += UDP_SEND_BUFSIZE;
+#endif
 			break;
 		}
 	}
 	if (!retries) {
 		/* Terminate this app */
+#if DEBUG_ENABLE
 		u64_t now = get_time_ms();
 		u64_t diff_ms = now - client.start_time;
+		udp_conn_report(diff_ms, UDP_DONE_CLIENT);
+#endif
 		xil_printf("Too many udp_send() retries, ");
 		xil_printf("Terminating application\n\r");
-		udp_conn_report(diff_ms, UDP_DONE_CLIENT);
 		xil_printf("UDP test failed\n\r");
 		udp_remove(pcb);
 		pcb = NULL;
@@ -194,12 +200,6 @@ static void udp_packet_send(u8_t finished)
 		pcb = NULL;
 
 	pbuf_free(packet);
-
-	/* For ZynqMP SGMII, At high speed,
-	 * "pack dropped, no space" issue observed.
-	 * To avoid this, added delay of 2us between each
-	 * packets.
-	 */
 	packet_id++;
 }
 
@@ -208,7 +208,7 @@ void transfer_data(void)
 {
 	if (pcb == NULL)
 		return;
-
+#if DEBUG_ENABLE
 	if (END_TIME || REPORT_INTERVAL_TIME) {
 		u64_t now = get_time_ms();
 		if (REPORT_INTERVAL_TIME) {
@@ -237,7 +237,7 @@ void transfer_data(void)
 			}
 		}
 	}
-
+#endif
 	udp_packet_send(!FINISH);
 }
 
@@ -269,7 +269,9 @@ void start_application(void)
 	/* Wait for successful connection */
 	usleep(10);
 
+#if DEBUG_ENABLE
 	reset_stats();
+#endif
 
 	/* initialize data buffer being sent with same as used in iperf */
 	for (i = 0; i < UDP_SEND_BUFSIZE; i++)

@@ -29,6 +29,8 @@
 #ifndef __PLATFORM_H_
 #define __PLATFORM_H_
 
+#define DEBUG_ENABLE 1
+
 void init_platform();
 void cleanup_platform();
 void platform_setup_timer();
