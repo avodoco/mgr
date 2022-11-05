@@ -37,9 +37,6 @@
 #include "lwip/inet.h"
 #include "xil_cache.h"
 
-extern volatile int TcpFastTmrFlag;
-extern volatile int TcpSlowTmrFlag;
-
 #define DEFAULT_IP_ADDRESS	"192.168.1.11"
 #define DEFAULT_IP_MASK		"255.255.255.0"
 #define DEFAULT_GW_ADDRESS	"192.168.1.1"
