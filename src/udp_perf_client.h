@@ -93,13 +93,13 @@ struct perf_stats {
 #define UDP_CONN_PORT 50000
 
 /* time in seconds to transmit packets */
-#define UDP_TIME_INTERVAL 300
+#define UDP_TIME_INTERVAL 100
 
 /* Server to connect with */
 #define UDP_SERVER_IP_ADDRESS "192.168.1.249"
 
 /* UDP buffer length in bytes */
-#define UDP_SEND_BUFSIZE 1440
+#define UDP_SEND_BUFSIZE 100
 
 /* MAX UDP send retries */
 #define MAX_SEND_RETRY 10
