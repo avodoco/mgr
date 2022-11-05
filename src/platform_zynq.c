@@ -76,12 +76,6 @@ extern struct netif server_netif;
 volatile int TcpFastTmrFlag = 0;
 volatile int TcpSlowTmrFlag = 0;
 
-#if LWIP_DHCP==1
-volatile int dhcp_timoutcntr = 24;
-void dhcp_fine_tmr();
-void dhcp_coarse_tmr();
-#endif
-
 void
 timer_callback(XScuTimer * TimerInstance)
 {
@@ -89,9 +83,6 @@ timer_callback(XScuTimer * TimerInstance)
 	 * by lwIP. It is not important that the timing is absoluetly accurate.
 	 */
 	static int odd = 1;
-#if LWIP_DHCP==1
-    static int dhcp_timer = 0;
-#endif
 	 TcpFastTmrFlag = 1;
 
 	odd = !odd;
@@ -99,18 +90,7 @@ timer_callback(XScuTimer * TimerInstance)
 	ResetRxCntr++;
 #endif
 	if (odd) {
-#if LWIP_DHCP==1
-		dhcp_timer++;
-		dhcp_timoutcntr--;
-#endif
 		TcpSlowTmrFlag = 1;
-#if LWIP_DHCP==1
-		dhcp_fine_tmr();
-		if (dhcp_timer >= 120) {
-			dhcp_coarse_tmr();
-			dhcp_timer = 0;
-		}
-#endif
 	}
 
 	/* For providing an SW alternative for the SI #692601. Under heavy

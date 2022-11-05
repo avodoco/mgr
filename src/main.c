@@ -38,11 +38,6 @@
 #include "lwip/inet.h"
 #include "xil_cache.h"
 
-#if LWIP_DHCP==1
-#include "lwip/dhcp.h"
-extern volatile int dhcp_timoutcntr;
-#endif
-
 extern volatile int TcpFastTmrFlag;
 extern volatile int TcpSlowTmrFlag;
 
