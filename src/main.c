@@ -117,22 +117,8 @@ int main(void)
 	/* specify that the network if is up */
 	netif_set_up(netif);
 
-	/* Create a new DHCP client for this interface.
-	 * Note: you must call dhcp_fine_tmr() and dhcp_coarse_tmr() at
-	 * the predefined regular intervals after starting the client.
-	 */
-	dhcp_start(netif);
-	dhcp_timoutcntr = 24;
-	while (((netif->ip_addr.addr) == 0) && (dhcp_timoutcntr > 0))
-		xemacif_input(netif);
-
-	if (dhcp_timoutcntr <= 0) {
-		if ((netif->ip_addr.addr) == 0) {
-			xil_printf("ERROR: DHCP request timed out\r\n");
-			assign_default_ip(&(netif->ip_addr),
-					&(netif->netmask), &(netif->gw));
-		}
-	}
+	assign_default_ip(&(netif->ip_addr),
+			&(netif->netmask), &(netif->gw));
 
 	/* print IP address, netmask and gateway */
 	print_ip_settings(&(netif->ip_addr), &(netif->netmask), &(netif->gw));

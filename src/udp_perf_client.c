@@ -268,6 +268,7 @@ void start_application(void)
 	}
 	/* Wait for successful connection */
 	usleep(10);
+
 	reset_stats();
 
 	/* initialize data buffer being sent with same as used in iperf */
