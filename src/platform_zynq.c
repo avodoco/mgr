@@ -49,7 +49,6 @@
 #include "xparameters_ps.h"	/* defines XPAR values */
 #include "xil_cache.h"
 #include "xscugic.h"
-#include "lwip/tcp.h"
 #include "xil_printf.h"
 #include "netif/xadapter.h"
 #include "xscutimer.h"
@@ -63,9 +62,6 @@
 
 #define RESET_RX_CNTR_LIMIT	400
 
-void tcp_fasttmr(void);
-void tcp_slowtmr(void);
-
 static XScuTimer TimerInstance;
 
 #ifndef USE_SOFTETH_ON_ZYNQ
@@ -73,25 +69,9 @@ static int ResetRxCntr = 0;
 extern struct netif server_netif;
 #endif
 
-volatile int TcpFastTmrFlag = 0;
-volatile int TcpSlowTmrFlag = 0;
-
 void
 timer_callback(XScuTimer * TimerInstance)
 {
-	/* we need to call tcp_fasttmr & tcp_slowtmr at intervals specified
-	 * by lwIP. It is not important that the timing is absoluetly accurate.
-	 */
-	static int odd = 1;
-	 TcpFastTmrFlag = 1;
-
-	odd = !odd;
-#ifndef USE_SOFTETH_ON_ZYNQ
-	ResetRxCntr++;
-#endif
-	if (odd) {
-		TcpSlowTmrFlag = 1;
-	}
 
 	/* For providing an SW alternative for the SI #692601. Under heavy
 	 * Rx traffic if at some point the Rx path becomes unresponsive, the

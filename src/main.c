@@ -33,7 +33,6 @@
 #include "lwipopts.h"
 #include "xil_printf.h"
 #include "sleep.h"
-#include "lwip/priv/tcp_priv.h"
 #include "lwip/init.h"
 #include "lwip/inet.h"
 #include "xil_cache.h"
@@ -133,14 +132,6 @@ int main(void)
 	xil_printf("\r\n");
 
 	while (1) {
-		if (TcpFastTmrFlag) {
-			tcp_fasttmr();
-			TcpFastTmrFlag = 0;
-		}
-		if (TcpSlowTmrFlag) {
-			tcp_slowtmr();
-			TcpSlowTmrFlag = 0;
-		}
 		xemacif_input(netif);
 		transfer_data();
 	}
