@@ -32,7 +32,6 @@
 
 extern struct netif server_netif;
 static struct udp_pcb *pcb;
-static char send_buf[UDP_SEND_BUFSIZE];
 #define FINISH	1
 /* Report interval time in ms */
 #define REPORT_INTERVAL_TIME (INTERIM_REPORT_INTERVAL * 1000)
@@ -152,13 +151,14 @@ static void udp_packet_send(u8_t finished)
 	u8_t retries = MAX_SEND_RETRY;
 	struct pbuf *packet;
 	err_t err;
+	u8* send_buf = rx_buffer;
 
-	packet = pbuf_alloc(PBUF_TRANSPORT, UDP_SEND_BUFSIZE, PBUF_POOL);
+	packet = pbuf_alloc(PBUF_TRANSPORT, BUFFER_SIZE, PBUF_POOL);
 	if (!packet) {
 		xil_printf("error allocating pbuf to send\r\n");
 		return;
 	} else {
-		pbuf_take(packet, send_buf, UDP_SEND_BUFSIZE);
+		pbuf_take(packet, send_buf, BUFFER_SIZE);
 	}
 
 	/* always increment the id */
@@ -176,9 +176,9 @@ static void udp_packet_send(u8_t finished)
 			usleep(100);
 		} else {
 #if DEBUG_ENABLE
-			client.total_bytes += UDP_SEND_BUFSIZE;
+			client.total_bytes += BUFFER_SIZE;
 			client.cnt_datagrams++;
-			client.i_report.total_bytes += UDP_SEND_BUFSIZE;
+			client.i_report.total_bytes += BUFFER_SIZE;
 #endif
 			break;
 		}
@@ -245,7 +245,6 @@ void start_application(void)
 {
 	err_t err;
 	ip_addr_t remote_addr;
-	u32_t i;
 
 	err = inet_aton(UDP_SERVER_IP_ADDRESS, &remote_addr);
 	if (!err) {
@@ -272,8 +271,4 @@ void start_application(void)
 #if DEBUG_ENABLE
 	reset_stats();
 #endif
-
-	/* initialize data buffer being sent with same as used in iperf */
-	for (i = 0; i < UDP_SEND_BUFSIZE; i++)
-		send_buf[i] = (i % 10) + '0';
 }

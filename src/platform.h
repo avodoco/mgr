@@ -30,10 +30,17 @@
 #define __PLATFORM_H_
 
 #define DEBUG_ENABLE 1
+#define BUFFER_SIZE 100
 
 void init_platform();
 void cleanup_platform();
 void platform_setup_timer();
 void platform_enable_interrupts();
-u64_t get_time_ms();
+void platform_setup_dma();
+int dma_transfer();
+u64 get_time_ms();
+
+extern u8 tx_buffer[BUFFER_SIZE];
+extern u8 rx_buffer[BUFFER_SIZE];
+
 #endif

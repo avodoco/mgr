@@ -48,6 +48,7 @@ void print_app_header(void);
 
 struct netif server_netif;
 
+
 static void print_ip(char *msg, ip_addr_t *ip)
 {
 	print(msg);
@@ -124,9 +125,20 @@ int main(void)
 	/* print app header */
 	print_app_header();
 
+
+
 	/* start the application*/
+
+	int status = dma_transfer();
+
 	start_application();
-	xil_printf("\r\n");
+
+	if(status == XST_FAILURE)
+	{
+		xil_printf("DMA transfer failed\r\n");
+		return 0;
+	}
+	xil_printf("DMA transfer succeeded\r\n");
 
 	while (1) {
 		xemacif_input(netif);
