@@ -3,7 +3,7 @@
 	<name>udp_example</name>
 	<comment>Created by Vitis v2022.1</comment>
 	<projects>
-		<project>ethernet_platform</project>
+		<project>mgr</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
