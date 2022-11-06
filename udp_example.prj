@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ASCII"?>
-<sdkproject:SdkProject xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sdkproject="http://www.xilinx.com/sdkproject" name="udp_example" location="C:/Users/karol/workspace/udp_example" platform="C:/Users/karol/workspace/mgr/export/mgr/mgr.xpfm" platformUID="xilinx:cora-z7-07s:tutorial_dma:0.0(custom)" systemProject="udp_example_system" sysConfig="mgr" runtime="C/C++" cpu="standalone_domain" cpuInstance="ps7_cortexa9_0" os="standalone" mssSignature="28a0cf5d325bb806d10b1835fc9dc60b">
-  <configuration name="Debug" id="xilinx.gnu.armv7.exe.debug.1416481835">
+<sdkproject:SdkProject xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sdkproject="http://www.xilinx.com/sdkproject" name="udp_example" location="C:/Users/karol/workspace/udp_example" platform="C:/Users/karol/workspace/mgr/export/mgr/mgr.xpfm" platformUID="xilinx:cora-z7-07s:tutorial_dma:0.0(custom)" systemProject="udp_example_system" sysConfig="mgr" runtime="C/C++" cpu="standalone_domain" cpuInstance="ps7_cortexa9_0" os="standalone" mssSignature="a0dff270eb46f6d0be90259aa28bdd7f">
+  <configuration name="Debug" id="xilinx.gnu.armv7.exe.debug.1416481835" dirty="true">
     <configBuildOptions xsi:type="sdkproject:SdkOptions"/>
     <lastBuildOptions xsi:type="sdkproject:SdkOptions"/>
   </configuration>
