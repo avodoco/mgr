@@ -244,6 +244,7 @@ int dma_transfer(void)
 
 	Status = XAxiDma_SimpleTransfer(&DmaInstance,(UINTPTR) TxBufferPtr,
 			BUFFER_SIZE, XAXIDMA_DMA_TO_DEVICE);
+	Xil_DCacheFlushRange((UINTPTR)RxBufferPtr, BUFFER_SIZE);
 
 	if (Status != XST_SUCCESS) {
 		return XST_FAILURE;
