@@ -342,7 +342,7 @@ void platform_setup_interrupts(void)
 					(Xil_ExceptionHandler)tx_dma_callback,
 					(void *)&DmaInstance);
 
-	//XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, TIMER_IRPT_INTR);
+	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, TIMER_IRPT_INTR);
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, RX_INTR_ID);
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, TX_INTR_ID);
 
