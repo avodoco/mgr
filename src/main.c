@@ -129,9 +129,8 @@ int main(void)
 
 	/* start the application*/
 
-	int status = dma_transfer();
-
 	start_application();
+	int status = dma_transfer();
 
 	if(status == XST_FAILURE)
 	{
@@ -141,8 +140,12 @@ int main(void)
 	xil_printf("DMA transfer succeeded\r\n");
 
 	while (1) {
-		xemacif_input(netif);
-		transfer_data();
+		if(send_udp)
+		{
+			xemacif_input(netif);
+			transfer_data();
+		}
+
 	}
 
 	/* never reached */

@@ -79,6 +79,7 @@ extern struct netif server_netif;
 volatile int TxDone = 0;
 volatile int RxDone = 0;
 volatile int Error = 0;
+int send_udp = 0;
 
 u8 tx_buffer[BUFFER_SIZE] = {0};
 u8 rx_buffer[BUFFER_SIZE] = {0};
@@ -156,6 +157,7 @@ static void rx_dma_callback(void *Callback)
 	if ((IrqStatus & XAXIDMA_IRQ_IOC_MASK)) {
 
 		RxDone = 1;
+		send_udp = 1;
 	}
 }
 
@@ -231,6 +233,10 @@ int dma_transfer(void)
 	u8 *TxBufferPtr = tx_buffer;
 	u8 *RxBufferPtr = rx_buffer;
 
+	TxDone = 0;
+	RxDone = 0;
+	Error = 0;
+
 	init_buff();
 	Xil_DCacheFlushRange((UINTPTR)TxBufferPtr, BUFFER_SIZE);
 	Xil_DCacheFlushRange((UINTPTR)RxBufferPtr, BUFFER_SIZE);
@@ -250,10 +256,9 @@ int dma_transfer(void)
 		return XST_FAILURE;
 	}
 
-
-	//while (!TxDone && !RxDone && !Error) {
+	while (!TxDone && !RxDone && !Error) {
 			/* NOP */
-//	}
+	}
 
 	return XST_SUCCESS;
 }
@@ -338,8 +343,8 @@ void platform_setup_interrupts(void)
 					(void *)&DmaInstance);
 
 	//XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, TIMER_IRPT_INTR);
-	//XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, RX_INTR_ID);
-	//XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, TX_INTR_ID);
+	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, RX_INTR_ID);
+	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, TX_INTR_ID);
 
 
 	return;
@@ -348,7 +353,7 @@ void platform_setup_interrupts(void)
 void platform_enable_interrupts()
 {
 	Xil_ExceptionEnable();
-	//XScuTimer_EnableInterrupt(&TimerInstance);
+	XScuTimer_EnableInterrupt(&TimerInstance);
 	XScuTimer_Start(&TimerInstance);
 	XAxiDma_IntrEnable(&DmaInstance, XAXIDMA_IRQ_ALL_MASK,
 							XAXIDMA_DMA_TO_DEVICE);

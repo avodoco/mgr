@@ -42,5 +42,6 @@ u64 get_time_ms();
 
 extern u8 tx_buffer[BUFFER_SIZE];
 extern u8 rx_buffer[BUFFER_SIZE];
+extern int send_udp;
 
 #endif
