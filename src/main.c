@@ -125,7 +125,6 @@ int main(void)
 	/* print app header */
 	print_app_header();
 
-
 	/* start the application*/
 	start_application();
 	int status = dma_transfer();

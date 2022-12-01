@@ -96,7 +96,7 @@ struct perf_stats {
 #define UDP_TIME_INTERVAL 100
 
 /* Server to connect with */
-#define UDP_SERVER_IP_ADDRESS "192.168.1.249"
+#define UDP_SERVER_IP_ADDRESS "192.168.1.1"
 
 /* MAX UDP send retries */
 #define MAX_SEND_RETRY 10

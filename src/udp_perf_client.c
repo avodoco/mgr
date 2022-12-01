@@ -241,6 +241,12 @@ void transfer_data(void)
 	udp_packet_send(!FINISH);
 }
 
+static void recive_udp_callback(void *arg, struct udp_pcb *tpcb,
+		struct pbuf *p, const ip_addr_t *addr, u16_t port)
+{
+	xil_printf("received!!!!");
+}
+
 void start_application(void)
 {
 	err_t err;
@@ -267,6 +273,8 @@ void start_application(void)
 	}
 	/* Wait for successful connection */
 	usleep(10);
+
+	udp_recv(pcb, (udp_recv_fn)recive_udp_callback, NULL);
 
 #if DEBUG_ENABLE
 	reset_stats();
