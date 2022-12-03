@@ -157,7 +157,6 @@ static void rx_dma_callback(void *callback)
 	if ((irq_status & XAXIDMA_IRQ_IOC_MASK)) {
 
 		rx_done = 1;
-		send_udp = 1;
 	}
 }
 

@@ -137,9 +137,9 @@ int main(void)
 	xil_printf("DMA transfer succeeded\r\n");
 
 	while (1) {
+		xemacif_input(netif);
 		if(send_udp)
 		{
-			xemacif_input(netif);
 			transfer_data();
 		}
 

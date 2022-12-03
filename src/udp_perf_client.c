@@ -29,6 +29,8 @@
 /* Connection handle for a UDP Client session */
 
 #include "udp_perf_client.h"
+#include <string.h>
+
 
 extern struct netif server_netif;
 static struct udp_pcb *pcb;
@@ -244,7 +246,29 @@ void transfer_data(void)
 static void recive_udp_callback(void *arg, struct udp_pcb *tpcb,
 		struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
-	xil_printf("received!!!!");
+	char* payload = (char *)(p->payload);
+	int packet_lenght = (int)(*payload);
+	char string[packet_lenght];
+	for(int i=0; i < packet_lenght; i++)
+	{
+		string[i] = *(payload+i*sizeof(char));
+	}
+
+	if(!(strcmp(string, "start")))
+	{
+		send_udp = 1;
+		xil_printf("Start sending via udp \r\n");
+	}
+
+	else if(!(strcmp(string, "finish")))
+	{
+		send_udp = 0;
+		xil_printf("Stop sending via udp \r\n");
+	}
+	else
+	{
+		xil_printf("Unknown command received \r\n");
+	}
 }
 
 void start_application(void)
