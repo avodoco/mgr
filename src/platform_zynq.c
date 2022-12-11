@@ -54,6 +54,7 @@
 #include "netif/xadapter.h"
 #include "xscutimer.h"
 #include "xaxidma.h"
+#include "xgpio.h"
 #include "xtime_l.h"
 #include <string.h>
 
@@ -67,11 +68,26 @@
 #define RX_INTR_ID			XPAR_FABRIC_AXIDMA_0_S2MM_INTROUT_VEC_ID
 #define TX_INTR_ID			XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID
 
+#define GPIO_AD_SEL_ID 	  	XPAR_AXI_GPIO_AD_SEL_DEVICE_ID
+#define GPIO_CLK_ID    	  	XPAR_AXI_GPIO_CLK_DEVICE_ID
+#define GPIO_D_OUT_ID     	XPAR_AXI_GPIO_D_OUT_DEVICE_ID
+#define GPIO_D_TRIG_ID    	XPAR_AXI_GPIO_D_TRIG_DEVICE_ID
+#define GPIO_EOC_ID       	XPAR_AXI_GPIO_EOC_DEVICE_ID
+#define GPIO_EOS_ID       	XPAR_AXI_GPIO_EOS_DEVICE_ID
+#define GPIO_START_SIG_ID 	XPAR_AXI_GPIO_START_SIG_DEVICE_ID
+#define GPIO_EOC_INTR_ID  	XPAR_FABRIC_AXI_GPIO_EOC_IP2INTC_IRPT_INTR
+#define GPIO_D_TRIG_INTR_ID XPAR_FABRIC_AXI_GPIO_D_TRIG_IP2INTC_IRPT_INTR
+#define GPIO_EOS_INTR_ID 	XPAR_FABRIC_AXI_GPIO_EOS_IP2INTC_IRPT_INTR
+
+#define GPIO_CHANNEL 1
+
+
 #define RESET_RX_CNTR_LIMIT	400
 #define RESET_TIMEOUT_COUNTER 10000
 
 static XScuTimer timer_instance;
 static XAxiDma dma_instance;
+static XGpio gpio_trig, gpio_eoc, gpio_eos, gpio_d_out;
 
 static int reset_rx_cntr = 0;
 extern struct netif server_netif;
@@ -84,9 +100,12 @@ int send_udp = 0;
 u8 tx_buffer[BUFFER_SIZE] = {0};
 u8 rx_buffer[BUFFER_SIZE] = {0};
 
+u16 counter_bits = 0;
+u16 data_read = 0;
+int counter_pixels = 0;
 
-void
-timer_callback(XScuTimer * timer_inst)
+
+void timer_callback(XScuTimer * timer_inst)
 {
 
 	/* For providing an SW alternative for the SI #692601. Under heavy
@@ -220,6 +239,82 @@ static void tx_dma_callback(void *callback)
 	}
 }
 
+static void gpio_eos_intr_callback(void *callback)
+{
+	XGpio *gpio_inst = (XGpio *)callback;
+	u32 irq_status = XGpio_InterruptGetStatus(gpio_inst);
+	if(irq_status & XGPIO_IR_CH1_MASK)
+	{
+		xil_printf("Interrupt for GPIO EOS\r\n");
+		counter_pixels = 0;
+		int status = XAxiDma_SimpleTransfer(&dma_instance,(UINTPTR) tx_buffer_ptr,
+			BUFFER_SIZE, XAXIDMA_DMA_TO_DEVICE);
+		Xil_DCacheFlushRange((UINTPTR)rx_buffer_ptr, BUFFER_SIZE);
+
+		if (status != XST_SUCCESS)
+		{
+			xil_printf("Failed DMA transfer \r\n");
+		}
+
+		send_udp = 1;
+	}
+	else
+	{
+		xil_printf("Unknown interrupt for GPIO EOS\r\n");
+	}
+
+	XGpio_InterruptClear(irq_status, GPIO_CHANNEL);
+}
+
+static void gpio_eoc_intr_callback(void *callback)
+{
+	XGpio *gpio_inst = (XGpio *)callback;
+	u32 irq_status = XGpio_InterruptGetStatus(gpio_inst);
+	if(irq_status & XGPIO_IR_CH1_MASK)
+	{
+		xil_printf("Interrupt for GPIO EOC\r\n");
+
+		rx_buffer[counter_pixels] = data_read;
+		counter_bits = 0;
+		data_read = 0;
+		counter_pixels++;
+
+	}
+	else
+	{
+		xil_printf("Unknown interrupt for GPIO EOS\r\n");
+	}
+
+	XGpio_InterruptClear(irq_status, GPIO_CHANNEL);
+
+}
+
+static void gpio_d_trig_intr_callback(void *callback)
+{
+	XGpio *gpio_inst = (XGpio *)callback;
+	u32 irq_status = XGpio_InterruptGetStatus(gpio_inst);
+	if(irq_status & XGPIO_IR_CH1_MASK)
+	{
+		xil_printf("Interrupt for GPIO D TRIG\r\n");
+		read_data_from_d_out();
+
+	}
+	else
+	{
+		xil_printf("Unknown interrupt for GPIO EOS\r\n");
+	}
+
+	XGpio_InterruptClear(irq_status, GPIO_CHANNEL);
+
+}
+
+void read_data_from_d_out(void)
+{
+	u8 bit_out = XGpio_DiscreteRead(gpio_d_out);
+	data_read |= bit_out << counter_bits;
+	counter_bits++;
+}
+
 void init_buff(void)
 {
 	u8 *tx_buffer_ptr = tx_buffer;
@@ -260,6 +355,42 @@ int dma_transfer(void)
 	}
 
 	return XST_SUCCESS;
+}
+
+void platform_setup_gpio(void)
+{
+	XGpio_Config *cfg_ptr;
+	XGpio gpio_start, gpio_ad_sel, gpio_clk;
+
+	cfg_ptr = XGpio_LookupConfig(GPIO_AD_SEL_ID);
+	XGpio_CfgInitialize(&gpio_ad_sel, cfg_ptr, cfg_ptr->BaseAddress);
+	XGpio_SetDataDirection(&gpio_ad_sel, GPIO_CHANNEL, 0);
+	XGpio_DiscreteWrite(&gpio_ad_sel, GPIO_CHANNEL, 0);
+
+	cfg_ptr = XGpio_LookupConfig(GPIO_D_OUT_ID);
+	XGpio_CfgInitialize(&gpio_d_out, cfg_ptr, cfg_ptr->BaseAddress);
+	XGpio_SetDataDirection(&gpio_d_out, GPIO_CHANNEL, 1);
+
+	cfg_ptr = XGpio_LookupConfig(GPIO_START_SIG_ID);
+	XGpio_CfgInitialize(&gpio_start, cfg_ptr, cfg_ptr->BaseAddress);
+	XGpio_SetDataDirection(&gpio_start, GPIO_CHANNEL, 0);
+
+	cfg_ptr = XGpio_LookupConfig(GPIO_EOS_ID);
+	XGpio_CfgInitialize(&gpio_eos, cfg_ptr, cfg_ptr->BaseAddress);
+	XGpio_SetDataDirection(&gpio_eos, GPIO_CHANNEL, 1);
+
+	cfg_ptr = XGpio_LookupConfig(GPIO_EOC_ID);
+	XGpio_CfgInitialize(&gpio_eoc, cfg_ptr, cfg_ptr->BaseAddress);
+	XGpio_SetDataDirection(&gpio_eoc, GPIO_CHANNEL, 1);
+
+	cfg_ptr = XGpio_LookupConfig(GPIO_D_TRIG_ID);
+	XGpio_CfgInitialize(&gpio_trig, cfg_ptr, cfg_ptr->BaseAddress);
+	XGpio_SetDataDirection(&gpio_trig, GPIO_CHANNEL, 1);
+
+	cfg_ptr = XGpio_LookupConfig(GPIO_CLK_ID);
+	XGpio_CfgInitialize(&gpio_clk, cfg_ptr, cfg_ptr->BaseAddress);
+	XGpio_SetDataDirection(&gpio_clk, GPIO_CHANNEL, 0);
+
 }
 
 void platform_setup_dma(void)
@@ -340,10 +471,23 @@ void platform_setup_interrupts(void)
 	XScuGic_RegisterHandler(INTC_BASE_ADDR, TX_INTR_ID,
 					(Xil_ExceptionHandler)tx_dma_callback,
 					(void *)&dma_instance);
+	XScuGic_RegisterHandler(INTC_BASE_ADDR, GPIO_EOC_INTR_ID,
+					(Xil_ExceptionHandler)gpio_eoc_intr_callback,
+					(void *)&gpio_eoc);
+	XScuGic_RegisterHandler(INTC_BASE_ADDR, GPIO_EOS_INTR_ID,
+					(Xil_ExceptionHandler)gpio_eos_intr_callback,
+					(void *)&gpio_eos);
+	XScuGic_RegisterHandler(INTC_BASE_ADDR, GPIO_D_TRIG_INTR_ID,
+					(Xil_ExceptionHandler)gpio_d_trig_intr_callback,
+					(void *)&gpio_trig);
+
 
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, TIMER_IRPT_INTR);
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, RX_INTR_ID);
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, TX_INTR_ID);
+	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, GPIO_EOC_INTR_ID);
+	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, GPIO_EOS_INTR_ID);
+	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, GPIO_D_TRIG_INTR_ID);
 
 
 	return;
@@ -352,12 +496,23 @@ void platform_setup_interrupts(void)
 void platform_enable_interrupts()
 {
 	Xil_ExceptionEnable();
+
 	XScuTimer_EnableInterrupt(&timer_instance);
 	XScuTimer_Start(&timer_instance);
+
 	XAxiDma_IntrEnable(&dma_instance, XAXIDMA_IRQ_ALL_MASK,
 							XAXIDMA_DMA_TO_DEVICE);
 	XAxiDma_IntrEnable(&dma_instance, XAXIDMA_IRQ_ALL_MASK,
 							XAXIDMA_DEVICE_TO_DMA);
+
+
+	XGpio_InterruptGlobalEnable(&gpio_trig);
+	//XGpio_InterruptGlobalEnable(&gpio_eoc);
+	//XGpio_InterruptGlobalEnable(&gpio_eos);
+	XGpio_InterruptEnable(&gpio_trig, XGPIO_IR_CH1_MASK);
+	XGpio_InterruptEnable(&gpio_eoc, XGPIO_IR_CH1_MASK);
+	XGpio_InterruptEnable(&gpio_eos, XGPIO_IR_CH1_MASK);
+
 	return;
 }
 
@@ -365,6 +520,7 @@ void init_platform()
 {
 	platform_setup_timer();
 	platform_setup_dma();
+	platform_setup_gpio();
 	platform_setup_interrupts();
 
 	return;

@@ -30,7 +30,7 @@
 #define __PLATFORM_H_
 
 #define DEBUG_ENABLE 1
-#define BUFFER_SIZE 100
+#define BUFFER_SIZE 1024
 
 void init_platform();
 void cleanup_platform();
