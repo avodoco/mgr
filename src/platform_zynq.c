@@ -129,51 +129,33 @@ static void rx_dma_callback(void *callback)
 	int time_out;
 	XAxiDma *axi_dma_inst = (XAxiDma *)callback;
 
-	/* Read pending interrupts */
 	irq_status = XAxiDma_IntrGetIrq(axi_dma_inst, XAXIDMA_DEVICE_TO_DMA);
-
-	/* Acknowledge pending interrupts */
 	XAxiDma_IntrAckIrq(axi_dma_inst, irq_status, XAXIDMA_DEVICE_TO_DMA);
 
-	/*
-	 * If no interrupt is asserted, we do not do anything
-	 */
 	if (!(irq_status & XAXIDMA_IRQ_ALL_MASK)) {
 		return;
 	}
 
-	/*
-	 * If error interrupt is asserted, raise error flag, reset the
-	 * hardware to recover from the error, and return with no further
-	 * processing.
-	 */
 	if ((irq_status & XAXIDMA_IRQ_ERROR_MASK)) {
 
 		error = 1;
-
-		/* Reset could fail and hang
-		 * NEED a way to handle this or do not call it??
-		 */
 		XAxiDma_Reset(axi_dma_inst);
-
 		time_out = RESET_TIMEOUT_COUNTER;
 
-		while (time_out) {
-			if(XAxiDma_ResetIsDone(axi_dma_inst)) {
+		while (time_out)
+		{
+			if(XAxiDma_ResetIsDone(axi_dma_inst))
+			{
 				break;
 			}
-
 			time_out -= 1;
 		}
 
 		return;
 	}
 
-	/*
-	 * If completion interrupt is asserted, then set RxDone flag
-	 */
-	if ((irq_status & XAXIDMA_IRQ_IOC_MASK)) {
-
+	if ((irq_status & XAXIDMA_IRQ_IOC_MASK))
+	{
 		rx_done = 1;
 	}
 }
@@ -186,54 +168,34 @@ static void tx_dma_callback(void *callback)
 	int time_out;
 	XAxiDma *axi_dma_inst = (XAxiDma *)callback;
 
-	/* Read pending interrupts */
 	irq_status = XAxiDma_IntrGetIrq(axi_dma_inst, XAXIDMA_DMA_TO_DEVICE);
-
-	/* Acknowledge pending interrupts */
-
-
 	XAxiDma_IntrAckIrq(axi_dma_inst, irq_status, XAXIDMA_DMA_TO_DEVICE);
 
-	/*
-	 * If no interrupt is asserted, we do not do anything
-	 */
 	if (!(irq_status & XAXIDMA_IRQ_ALL_MASK)) {
 
 		return;
 	}
 
-	/*
-	 * If error interrupt is asserted, raise error flag, reset the
-	 * hardware to recover from the error, and return with no further
-	 * processing.
-	 */
 	if ((irq_status & XAXIDMA_IRQ_ERROR_MASK)) {
 
 		error = 1;
-
-		/*
-		 * Reset should never fail for transmit channel
-		 */
 		XAxiDma_Reset(axi_dma_inst);
 
 		time_out = RESET_TIMEOUT_COUNTER;
 
-		while (time_out) {
-			if (XAxiDma_ResetIsDone(axi_dma_inst)) {
+		while (time_out)
+		{
+			if (XAxiDma_ResetIsDone(axi_dma_inst))
+			{
 				break;
 			}
-
 			time_out -= 1;
 		}
-
 		return;
 	}
 
-	/*
-	 * If Completion interrupt is asserted, then set the TxDone flag
-	 */
-	if ((irq_status & XAXIDMA_IRQ_IOC_MASK)) {
-
+	if ((irq_status & XAXIDMA_IRQ_IOC_MASK))
+	{
 		tx_done = 1;
 	}
 }
@@ -242,19 +204,14 @@ static void gpio_eos_intr_callback(void *callback)
 {
 	XGpio *gpio_inst = (XGpio *)callback;
 	u32 irq_status = XGpio_InterruptGetStatus(gpio_inst);
+
+	XGpio_InterruptClear(gpio_inst, GPIO_CHANNEL);
+
 	if(irq_status & XGPIO_IR_CH1_MASK)
 	{
 		xil_printf("Interrupt for GPIO EOS\r\n");
 		counter_pixels = 0;
-		int status = XAxiDma_SimpleTransfer(&dma_instance,(UINTPTR) tx_buffer,
-			BUFFER_SIZE, XAXIDMA_DMA_TO_DEVICE);
-		Xil_DCacheFlushRange((UINTPTR)tx_buffer, BUFFER_SIZE);
-
-		if (status != XST_SUCCESS)
-		{
-			xil_printf("Failed DMA transfer \r\n");
-		}
-
+		dma_transfer();
 		send_udp = 1;
 	}
 	else
@@ -262,7 +219,7 @@ static void gpio_eos_intr_callback(void *callback)
 		xil_printf("Unknown interrupt for GPIO EOS\r\n");
 	}
 
-	XGpio_InterruptClear(gpio_inst, GPIO_CHANNEL);
+
 }
 
 static void gpio_eoc_intr_callback(void *callback)
