@@ -256,13 +256,17 @@ static void recive_udp_callback(void *arg, struct udp_pcb *tpcb,
 
 	if(!(strcmp(string, "start")))
 	{
-		send_udp = 1;
+		start_stop_measurements(1);
 		xil_printf("Start sending via udp \r\n");
 	}
-
-	else if(!(strcmp(string, "finish")))
+	else if(!(strcmp(string, "ack_rx")))
 	{
 		send_udp = 0;
+		xil_printf("Ack received \r\n");
+	}
+	else if(!(strcmp(string, "finish")))
+	{
+		start_stop_measurements(0);
 		xil_printf("Stop sending via udp \r\n");
 	}
 	else

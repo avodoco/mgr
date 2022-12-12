@@ -127,14 +127,14 @@ int main(void)
 
 	/* start the application*/
 	start_application();
-	int status = dma_transfer();
+	/*int status = dma_transfer();
 
 	if(status == XST_FAILURE)
 	{
 		xil_printf("DMA transfer failed\r\n");
 		return 0;
 	}
-	xil_printf("DMA transfer succeeded\r\n");
+	xil_printf("DMA transfer succeeded\r\n");*/
 
 	while (1) {
 		xemacif_input(netif);

@@ -86,7 +86,7 @@
 
 static XScuTimer timer_instance;
 static XAxiDma dma_instance;
-static XGpio gpio_trig, gpio_eoc, gpio_eos, gpio_d_out;
+static XGpio gpio_trig, gpio_eoc, gpio_eos, gpio_d_out, gpio_start;
 
 static int reset_rx_cntr = 0;
 extern struct netif server_netif;
@@ -197,6 +197,7 @@ static void tx_dma_callback(void *callback)
 	if ((irq_status & XAXIDMA_IRQ_IOC_MASK))
 	{
 		tx_done = 1;
+		send_udp = 1;
 	}
 }
 
@@ -271,6 +272,18 @@ void read_data_from_d_out(void)
 	counter_bits++;
 }
 
+void start_stop_measurements(int start_stop)
+{
+	if(start_stop)
+	{
+		XGpio_DiscreteWrite(&gpio_start, GPIO_CHANNEL, 1);
+	}
+	else
+	{
+		XGpio_DiscreteWrite(&gpio_start, GPIO_CHANNEL, 0);
+	}
+}
+
 void init_buff(void)
 {
 	u8 *tx_buffer_ptr = tx_buffer;
@@ -316,7 +329,7 @@ int dma_transfer(void)
 void platform_setup_gpio(void)
 {
 	XGpio_Config *cfg_ptr;
-	XGpio gpio_start, gpio_ad_sel;
+	XGpio gpio_ad_sel;
 
 	cfg_ptr = XGpio_LookupConfig(GPIO_AD_SEL_ID);
 	XGpio_CfgInitialize(&gpio_ad_sel, cfg_ptr, cfg_ptr->BaseAddress);
@@ -459,8 +472,8 @@ void platform_enable_interrupts()
 
 
 	XGpio_InterruptGlobalEnable(&gpio_trig);
-	//XGpio_InterruptGlobalEnable(&gpio_eoc);
-	//XGpio_InterruptGlobalEnable(&gpio_eos);
+	XGpio_InterruptGlobalEnable(&gpio_eoc);
+	XGpio_InterruptGlobalEnable(&gpio_eos);
 	XGpio_InterruptEnable(&gpio_trig, XGPIO_IR_CH1_MASK);
 	XGpio_InterruptEnable(&gpio_eoc, XGPIO_IR_CH1_MASK);
 	XGpio_InterruptEnable(&gpio_eos, XGPIO_IR_CH1_MASK);
