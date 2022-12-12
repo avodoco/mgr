@@ -69,7 +69,6 @@
 #define TX_INTR_ID			XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID
 
 #define GPIO_AD_SEL_ID 	  	XPAR_AXI_GPIO_AD_SEL_DEVICE_ID
-#define GPIO_CLK_ID    	  	XPAR_AXI_GPIO_CLK_DEVICE_ID
 #define GPIO_D_OUT_ID     	XPAR_AXI_GPIO_D_OUT_DEVICE_ID
 #define GPIO_D_TRIG_ID    	XPAR_AXI_GPIO_D_TRIG_DEVICE_ID
 #define GPIO_EOC_ID       	XPAR_AXI_GPIO_EOC_DEVICE_ID
@@ -247,9 +246,9 @@ static void gpio_eos_intr_callback(void *callback)
 	{
 		xil_printf("Interrupt for GPIO EOS\r\n");
 		counter_pixels = 0;
-		int status = XAxiDma_SimpleTransfer(&dma_instance,(UINTPTR) tx_buffer_ptr,
+		int status = XAxiDma_SimpleTransfer(&dma_instance,(UINTPTR) tx_buffer,
 			BUFFER_SIZE, XAXIDMA_DMA_TO_DEVICE);
-		Xil_DCacheFlushRange((UINTPTR)rx_buffer_ptr, BUFFER_SIZE);
+		Xil_DCacheFlushRange((UINTPTR)tx_buffer, BUFFER_SIZE);
 
 		if (status != XST_SUCCESS)
 		{
@@ -263,7 +262,7 @@ static void gpio_eos_intr_callback(void *callback)
 		xil_printf("Unknown interrupt for GPIO EOS\r\n");
 	}
 
-	XGpio_InterruptClear(irq_status, GPIO_CHANNEL);
+	XGpio_InterruptClear(gpio_inst, GPIO_CHANNEL);
 }
 
 static void gpio_eoc_intr_callback(void *callback)
@@ -285,7 +284,7 @@ static void gpio_eoc_intr_callback(void *callback)
 		xil_printf("Unknown interrupt for GPIO EOS\r\n");
 	}
 
-	XGpio_InterruptClear(irq_status, GPIO_CHANNEL);
+	XGpio_InterruptClear(gpio_inst, GPIO_CHANNEL);
 
 }
 
@@ -304,13 +303,13 @@ static void gpio_d_trig_intr_callback(void *callback)
 		xil_printf("Unknown interrupt for GPIO EOS\r\n");
 	}
 
-	XGpio_InterruptClear(irq_status, GPIO_CHANNEL);
+	XGpio_InterruptClear(gpio_inst, GPIO_CHANNEL);
 
 }
 
 void read_data_from_d_out(void)
 {
-	u8 bit_out = XGpio_DiscreteRead(gpio_d_out);
+	u8 bit_out = XGpio_DiscreteRead(&gpio_d_out, GPIO_CHANNEL);
 	data_read |= bit_out << counter_bits;
 	counter_bits++;
 }
@@ -360,7 +359,7 @@ int dma_transfer(void)
 void platform_setup_gpio(void)
 {
 	XGpio_Config *cfg_ptr;
-	XGpio gpio_start, gpio_ad_sel, gpio_clk;
+	XGpio gpio_start, gpio_ad_sel;
 
 	cfg_ptr = XGpio_LookupConfig(GPIO_AD_SEL_ID);
 	XGpio_CfgInitialize(&gpio_ad_sel, cfg_ptr, cfg_ptr->BaseAddress);
@@ -386,10 +385,6 @@ void platform_setup_gpio(void)
 	cfg_ptr = XGpio_LookupConfig(GPIO_D_TRIG_ID);
 	XGpio_CfgInitialize(&gpio_trig, cfg_ptr, cfg_ptr->BaseAddress);
 	XGpio_SetDataDirection(&gpio_trig, GPIO_CHANNEL, 1);
-
-	cfg_ptr = XGpio_LookupConfig(GPIO_CLK_ID);
-	XGpio_CfgInitialize(&gpio_clk, cfg_ptr, cfg_ptr->BaseAddress);
-	XGpio_SetDataDirection(&gpio_clk, GPIO_CHANNEL, 0);
 
 }
 

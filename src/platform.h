@@ -37,6 +37,7 @@ void cleanup_platform();
 void platform_setup_timer();
 void platform_enable_interrupts();
 void platform_setup_dma();
+void read_data_from_d_out();
 int dma_transfer();
 u64 get_time_ms();
 
