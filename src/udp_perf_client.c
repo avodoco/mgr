@@ -38,7 +38,7 @@ static struct udp_pcb *pcb;
 /* Report interval time in ms */
 #define REPORT_INTERVAL_TIME (INTERIM_REPORT_INTERVAL * 1000)
 /* End time in ms */
-#define END_TIME (UDP_TIME_INTERVAL * 1000)
+#define END_TIME (UDP_TIME_INTERVAL * 600)
 
 #if DEBUG_ENABLE
 static struct perf_stats client;
@@ -153,7 +153,7 @@ static void udp_packet_send(u8_t finished)
 	u8_t retries = MAX_SEND_RETRY;
 	struct pbuf *packet;
 	err_t err;
-	u8* send_buf = rx_buffer;
+	u8* send_buf = tx_buffer;
 
 	packet = pbuf_alloc(PBUF_TRANSPORT, BUFFER_SIZE, PBUF_POOL);
 	if (!packet) {
@@ -164,11 +164,11 @@ static void udp_packet_send(u8_t finished)
 	}
 
 	/* always increment the id */
-	payload = (int*) (packet->payload);
+	//payload = (int*) (packet->payload);
 	if (finished == FINISH)
 		packet_id = -1;
 
-	payload[0] = htonl(packet_id);
+	//payload[0] = htonl(packet_id);
 
 	while (retries) {
 		err = udp_send(pcb, packet);
@@ -202,7 +202,8 @@ static void udp_packet_send(u8_t finished)
 		pcb = NULL;
 
 	pbuf_free(packet);
-	packet_id++;
+	send_udp = 0;
+	//packet_id++;
 }
 
 /** Transmit data on a udp session */
@@ -259,11 +260,11 @@ static void recive_udp_callback(void *arg, struct udp_pcb *tpcb,
 		start_stop_measurements(1);
 		xil_printf("Start sending via udp \r\n");
 	}
-	else if(!(strcmp(string, "tx")))
+	/*else if(!(strcmp(string, "tx")))
 	{
 		send_udp = 0;
-		xil_printf("Ack received \r\n");
-	}
+		//xil_printf("Ack received \r\n");
+	}*/
 	else if(!(strcmp(string, "finish")))
 	{
 		start_stop_measurements(0);
@@ -273,6 +274,7 @@ static void recive_udp_callback(void *arg, struct udp_pcb *tpcb,
 	{
 		xil_printf("Unknown command received \r\n");
 	}
+	memset(string,0,packet_lenght);
 }
 
 void start_application(void)

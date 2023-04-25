@@ -87,12 +87,12 @@ struct perf_stats {
 };
 
 /* seconds between periodic bandwidth reports */
-#define INTERIM_REPORT_INTERVAL 5
+#define INTERIM_REPORT_INTERVAL 10
 
 /* Client port to connect */
 #define UDP_CONN_PORT 50000
 
-/* time in seconds to transmit packets */
+/* time in mseconds to transmit packets */
 #define UDP_TIME_INTERVAL 100
 
 /* Server to connect with */

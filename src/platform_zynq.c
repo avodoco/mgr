@@ -65,20 +65,22 @@
 #define INTC_DIST_BASE_ADDR	XPAR_SCUGIC_0_DIST_BASEADDR
 #define TIMER_IRPT_INTR		XPAR_SCUTIMER_INTR
 #define DMA_DEV_ID			XPAR_AXIDMA_0_DEVICE_ID
-#define RX_INTR_ID			XPAR_FABRIC_AXIDMA_0_S2MM_INTROUT_VEC_ID
+#define RX_INTR_ID			XPAR_FABRIC_AXI_DMA_0_S2MM_INTROUT_INTR
 #define TX_INTR_ID			XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID
 
-#define GPIO_AD_SEL_ID 	  	XPAR_AXI_GPIO_AD_SEL_DEVICE_ID
-#define GPIO_D_OUT_ID     	XPAR_AXI_GPIO_D_OUT_DEVICE_ID
-#define GPIO_D_TRIG_ID    	XPAR_AXI_GPIO_D_TRIG_DEVICE_ID
+//#define GPIO_AD_SEL_ID 	  	XPAR_AXI_GPIO_VSEL_DEVICE_ID
+//#define GPIO_D_OUT_ID     	XPAR_AXI_GPIO_D_OUT_DEVICE_ID
+//#define GPIO_D_TRIG_ID    	XPAR_AXI_GPIO_D_TRIG_DEVICE_ID
 #define GPIO_EOC_ID       	XPAR_AXI_GPIO_EOC_DEVICE_ID
 #define GPIO_EOS_ID       	XPAR_AXI_GPIO_EOS_DEVICE_ID
-#define GPIO_START_SIG_ID 	XPAR_AXI_GPIO_START_SIG_DEVICE_ID
+#define GPIO_START_SIG_ID 	XPAR_AXI_GPIO_START_DEVICE_ID
+#define GPIO_OUT_DATA_ID  	XPAR_AXI_GPIO_OUT_DATA_DEVICE_ID
 #define GPIO_EOC_INTR_ID  	XPAR_FABRIC_AXI_GPIO_EOC_IP2INTC_IRPT_INTR
-#define GPIO_D_TRIG_INTR_ID XPAR_FABRIC_AXI_GPIO_D_TRIG_IP2INTC_IRPT_INTR
+//#define GPIO_D_TRIG_INTR_ID XPAR_FABRIC_AXI_GPIO_D_TRIG_IP2INTC_IRPT_INTR
 #define GPIO_EOS_INTR_ID 	XPAR_FABRIC_AXI_GPIO_EOS_IP2INTC_IRPT_INTR
 
 #define GPIO_CHANNEL 1
+#define MEAS_CHANNEL_SIZE 7
 
 
 #define RESET_RX_CNTR_LIMIT	400
@@ -86,8 +88,8 @@
 
 static XScuTimer timer_instance;
 static XAxiDma dma_instance;
-static XGpio gpio_trig, gpio_eoc, gpio_eos, gpio_d_out, gpio_start;
-
+//static XGpio gpio_trig, gpio_eoc, gpio_eos, gpio_d_out, gpio_start;
+static XGpio gpio_eoc, gpio_eos, gpio_start, gpio_data;
 static int reset_rx_cntr = 0;
 extern struct netif server_netif;
 
@@ -95,12 +97,13 @@ volatile int tx_done = 0;
 volatile int rx_done = 0;
 volatile int error = 0;
 int send_udp = 0;
+int is_measurement_time = 0;
 
 u8 tx_buffer[BUFFER_SIZE] = {0};
 u8 rx_buffer[BUFFER_SIZE] = {0};
 
-u16 counter_bits = 0;
-u16 data_read = 0;
+//u16 counter_bits = MEAS_CHANNEL_SIZE;
+//u8 data_read = 0;
 int counter_pixels = 0;
 
 
@@ -131,7 +134,7 @@ static void rx_dma_callback(void *callback)
 
 	irq_status = XAxiDma_IntrGetIrq(axi_dma_inst, XAXIDMA_DEVICE_TO_DMA);
 	XAxiDma_IntrAckIrq(axi_dma_inst, irq_status, XAXIDMA_DEVICE_TO_DMA);
-
+	//xil_printf("in rx\r\n");
 	if (!(irq_status & XAXIDMA_IRQ_ALL_MASK)) {
 		return;
 	}
@@ -170,7 +173,7 @@ static void tx_dma_callback(void *callback)
 
 	irq_status = XAxiDma_IntrGetIrq(axi_dma_inst, XAXIDMA_DMA_TO_DEVICE);
 	XAxiDma_IntrAckIrq(axi_dma_inst, irq_status, XAXIDMA_DMA_TO_DEVICE);
-
+	//xil_printf("in tx\r\n");
 	if (!(irq_status & XAXIDMA_IRQ_ALL_MASK)) {
 
 		return;
@@ -197,7 +200,6 @@ static void tx_dma_callback(void *callback)
 	if ((irq_status & XAXIDMA_IRQ_IOC_MASK))
 	{
 		tx_done = 1;
-		send_udp = 1;
 	}
 }
 
@@ -208,16 +210,26 @@ static void gpio_eos_intr_callback(void *callback)
 
 	XGpio_InterruptClear(gpio_inst, GPIO_CHANNEL);
 
-	if(irq_status & XGPIO_IR_CH1_MASK)
+	if(is_measurement_time)
 	{
-		xil_printf("Interrupt for GPIO EOS\r\n");
-		counter_pixels = 0;
-		dma_transfer();
-		send_udp = 1;
+		if(irq_status & XGPIO_IR_CH1_MASK)
+		{
+			//xil_printf("Interrupt for GPIO EOS\r\n");
+			counter_pixels = 0;
+			//Xil_DCacheFlushRange((UINTPTR)tx_buffer, BUFFER_SIZE);
+			//dma_transfer();
+			send_udp = 1;
+
+			XGpio_DiscreteWrite(&gpio_start, GPIO_CHANNEL, 0);
+		}
+		else
+		{
+			xil_printf("Unknown interrupt for GPIO EOS\r\n");
+		}
 	}
 	else
 	{
-		xil_printf("Unknown interrupt for GPIO EOS\r\n");
+		xil_printf("Interrupt for GPIO EOS not in meas time\r\n");
 	}
 
 
@@ -227,60 +239,88 @@ static void gpio_eoc_intr_callback(void *callback)
 {
 	XGpio *gpio_inst = (XGpio *)callback;
 	u32 irq_status = XGpio_InterruptGetStatus(gpio_inst);
-	if(irq_status & XGPIO_IR_CH1_MASK)
-	{
-		xil_printf("Interrupt for GPIO EOC\r\n");
+	XGpio_InterruptClear(gpio_inst, GPIO_CHANNEL);
 
-		rx_buffer[counter_pixels] = data_read;
-		counter_bits = 0;
-		data_read = 0;
-		counter_pixels++;
+	if(is_measurement_time)
+	{
+		if(irq_status & XGPIO_IR_CH1_MASK)
+		{
+			//xil_printf("Interrupt for GPIO EOC\r\n");
+
+			//tx_buffer[counter_pixels] = data_read;
+			//xil_printf("data read %d\r\n", data_read);
+			//counter_bits = MEAS_CHANNEL_SIZE;
+			//data_read = 0;
+			tx_buffer[counter_pixels] = XGpio_DiscreteRead(&gpio_data, GPIO_CHANNEL);
+			counter_pixels++;
+
+			if(counter_pixels == 1)
+			{
+				XGpio_DiscreteWrite(&gpio_start, GPIO_CHANNEL, 1);
+			}
+
+		}
+		else
+		{
+			xil_printf("Unknown interrupt for GPIO EOC\r\n");
+		}
 
 	}
 	else
 	{
-		xil_printf("Unknown interrupt for GPIO EOS\r\n");
+		xil_printf("Interrupt for GPIO EOC not in meas time\r\n");
 	}
 
-	XGpio_InterruptClear(gpio_inst, GPIO_CHANNEL);
 
 }
 
-static void gpio_d_trig_intr_callback(void *callback)
+/*static void gpio_d_trig_intr_callback(void *callback)
 {
 	XGpio *gpio_inst = (XGpio *)callback;
 	u32 irq_status = XGpio_InterruptGetStatus(gpio_inst);
-	if(irq_status & XGPIO_IR_CH1_MASK)
-	{
-		xil_printf("Interrupt for GPIO D TRIG\r\n");
-		read_data_from_d_out();
+	XGpio_InterruptClear(gpio_inst, GPIO_CHANNEL);
 
+	if(is_measurement_time)
+	{
+		if(irq_status & XGPIO_IR_CH1_MASK)
+		{
+			//xil_printf("Interrupt for GPIO D TRIG\r\n");
+			read_data_from_d_out();
+
+		}
+		else
+		{
+			xil_printf("Unknown interrupt for GPIO D TRIG\r\n");
+		}
 	}
 	else
 	{
-		xil_printf("Unknown interrupt for GPIO EOS\r\n");
+		xil_printf("Interrupt for GPIO D TRIG not in meas time\r\n");
 	}
 
-	XGpio_InterruptClear(gpio_inst, GPIO_CHANNEL);
+
 
 }
 
 void read_data_from_d_out(void)
 {
 	u8 bit_out = XGpio_DiscreteRead(&gpio_d_out, GPIO_CHANNEL);
-	data_read |= bit_out << counter_bits;
-	counter_bits++;
-}
+	data_read |= bit_out << ( counter_bits);
 
-void start_stop_measurements(int start_stop)
+	//xil_printf("data read %d, bit nr %d \r\n", bit_out, counter_bits);
+	counter_bits--;
+}*/
+
+void start_stop_measurements(int start)
 {
-	if(start_stop)
+	if(start)
 	{
-		XGpio_DiscreteWrite(&gpio_start, GPIO_CHANNEL, 1);
+		XGpio_DiscreteWrite(&gpio_start, GPIO_CHANNEL, 0);
+		is_measurement_time = 1;
 	}
 	else
 	{
-		XGpio_DiscreteWrite(&gpio_start, GPIO_CHANNEL, 0);
+		is_measurement_time = 0;
 	}
 }
 
@@ -300,13 +340,13 @@ int dma_transfer(void)
 	rx_done = 0;
 	error = 0;
 
-	init_buff();
+	//init_buff();
 	Xil_DCacheFlushRange((UINTPTR)tx_buffer_ptr, BUFFER_SIZE);
 	Xil_DCacheFlushRange((UINTPTR)rx_buffer_ptr, BUFFER_SIZE);
 
 	int status = XAxiDma_SimpleTransfer(&dma_instance,(UINTPTR) rx_buffer_ptr,
 			BUFFER_SIZE, XAXIDMA_DEVICE_TO_DMA);
-
+	//xil_printf("rx transfer done, status %d \r\n", status);
 	if (status != XST_SUCCESS) {
 		return XST_FAILURE;
 	}
@@ -314,14 +354,14 @@ int dma_transfer(void)
 	status = XAxiDma_SimpleTransfer(&dma_instance,(UINTPTR) tx_buffer_ptr,
 			BUFFER_SIZE, XAXIDMA_DMA_TO_DEVICE);
 	Xil_DCacheFlushRange((UINTPTR)rx_buffer_ptr, BUFFER_SIZE);
-
+	//xil_printf("tx transfer done, status %d \r\n", status);
 	if (status != XST_SUCCESS) {
 		return XST_FAILURE;
 	}
 
-	while (!tx_done && !rx_done && !error) {
+//	while (!tx_done && !rx_done && !error) {
 			/* NOP */
-	}
+//	}
 
 	return XST_SUCCESS;
 }
@@ -329,32 +369,37 @@ int dma_transfer(void)
 void platform_setup_gpio(void)
 {
 	XGpio_Config *cfg_ptr;
-	XGpio gpio_ad_sel;
 
-	cfg_ptr = XGpio_LookupConfig(GPIO_AD_SEL_ID);
+	/*cfg_ptr = XGpio_LookupConfig(GPIO_AD_SEL_ID);
 	XGpio_CfgInitialize(&gpio_ad_sel, cfg_ptr, cfg_ptr->BaseAddress);
 	XGpio_SetDataDirection(&gpio_ad_sel, GPIO_CHANNEL, 0);
 	XGpio_DiscreteWrite(&gpio_ad_sel, GPIO_CHANNEL, 0);
 
 	cfg_ptr = XGpio_LookupConfig(GPIO_D_OUT_ID);
 	XGpio_CfgInitialize(&gpio_d_out, cfg_ptr, cfg_ptr->BaseAddress);
-	XGpio_SetDataDirection(&gpio_d_out, GPIO_CHANNEL, 1);
+	XGpio_SetDataDirection(&gpio_d_out, GPIO_CHANNEL, 1);*/
 
 	cfg_ptr = XGpio_LookupConfig(GPIO_START_SIG_ID);
 	XGpio_CfgInitialize(&gpio_start, cfg_ptr, cfg_ptr->BaseAddress);
-	XGpio_SetDataDirection(&gpio_start, GPIO_CHANNEL, 0);
+	//XGpio_SetDataDirection(&gpio_start, GPIO_CHANNEL, 0x11100000);
+	XGpio_DiscreteWrite(&gpio_start, GPIO_CHANNEL, 1);
 
 	cfg_ptr = XGpio_LookupConfig(GPIO_EOS_ID);
 	XGpio_CfgInitialize(&gpio_eos, cfg_ptr, cfg_ptr->BaseAddress);
-	XGpio_SetDataDirection(&gpio_eos, GPIO_CHANNEL, 1);
+	//XGpio_SetDataDirection(&gpio_eos, GPIO_CHANNEL, 1);
 
 	cfg_ptr = XGpio_LookupConfig(GPIO_EOC_ID);
 	XGpio_CfgInitialize(&gpio_eoc, cfg_ptr, cfg_ptr->BaseAddress);
-	XGpio_SetDataDirection(&gpio_eoc, GPIO_CHANNEL, 1);
+	//XGpio_SetDataDirection(&gpio_eoc, GPIO_CHANNEL, 1);
 
-	cfg_ptr = XGpio_LookupConfig(GPIO_D_TRIG_ID);
+	cfg_ptr = XGpio_LookupConfig(GPIO_OUT_DATA_ID);
+	XGpio_CfgInitialize(&gpio_data, cfg_ptr, cfg_ptr->BaseAddress);
+	//XGpio_SetDataDirection(&gpio_data, GPIO_CHANNEL, 1);
+
+	/*cfg_ptr = XGpio_LookupConfig(GPIO_D_TRIG_ID);
 	XGpio_CfgInitialize(&gpio_trig, cfg_ptr, cfg_ptr->BaseAddress);
 	XGpio_SetDataDirection(&gpio_trig, GPIO_CHANNEL, 1);
+	int a = XGpio_DiscreteRead(&gpio_trig, GPIO_CHANNEL);*/
 
 }
 
@@ -442,18 +487,17 @@ void platform_setup_interrupts(void)
 	XScuGic_RegisterHandler(INTC_BASE_ADDR, GPIO_EOS_INTR_ID,
 					(Xil_ExceptionHandler)gpio_eos_intr_callback,
 					(void *)&gpio_eos);
-	XScuGic_RegisterHandler(INTC_BASE_ADDR, GPIO_D_TRIG_INTR_ID,
+	/*XScuGic_RegisterHandler(INTC_BASE_ADDR, GPIO_D_TRIG_INTR_ID,
 					(Xil_ExceptionHandler)gpio_d_trig_intr_callback,
-					(void *)&gpio_trig);
+					(void *)&gpio_trig);*/
 
 
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, TIMER_IRPT_INTR);
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, RX_INTR_ID);
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, TX_INTR_ID);
+	//XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, GPIO_D_TRIG_INTR_ID);
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, GPIO_EOC_INTR_ID);
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, GPIO_EOS_INTR_ID);
-	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, GPIO_D_TRIG_INTR_ID);
-
 
 	return;
 }
@@ -465,16 +509,15 @@ void platform_enable_interrupts()
 	XScuTimer_EnableInterrupt(&timer_instance);
 	XScuTimer_Start(&timer_instance);
 
-	XAxiDma_IntrEnable(&dma_instance, XAXIDMA_IRQ_ALL_MASK,
+	XAxiDma_IntrEnable(&dma_instance, XAXIDMA_IRQ_IOC_MASK,
 							XAXIDMA_DMA_TO_DEVICE);
-	XAxiDma_IntrEnable(&dma_instance, XAXIDMA_IRQ_ALL_MASK,
+	XAxiDma_IntrEnable(&dma_instance, XAXIDMA_IRQ_IOC_MASK,
 							XAXIDMA_DEVICE_TO_DMA);
 
-
-	XGpio_InterruptGlobalEnable(&gpio_trig);
+	//XGpio_InterruptGlobalEnable(&gpio_trig);
 	XGpio_InterruptGlobalEnable(&gpio_eoc);
 	XGpio_InterruptGlobalEnable(&gpio_eos);
-	XGpio_InterruptEnable(&gpio_trig, XGPIO_IR_CH1_MASK);
+	//XGpio_InterruptEnable(&gpio_trig, XGPIO_IR_CH1_MASK);
 	XGpio_InterruptEnable(&gpio_eoc, XGPIO_IR_CH1_MASK);
 	XGpio_InterruptEnable(&gpio_eos, XGPIO_IR_CH1_MASK);
 
